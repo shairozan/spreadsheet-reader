@@ -441,7 +441,7 @@
 				$Index = $this->SheetIndexesToIds[$Index];
 			}
 
-			if (array_key_exists($Index, $this->Sheets))
+			if (array_key_exists($Index, $this->SheetIdsToFiles))
 			{
 				$SheetFile = $this->SheetIdsToFiles[$Index];
 			}
