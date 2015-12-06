@@ -68,6 +68,12 @@
 		 */
 		private $WorkbookXML = false;
 
+		// Workbook sheet file name relations data
+		/**
+		 * @var SimpleXMLElement XML object for the workbook XML file
+		 */
+		private $WorkbookRels = false;
+
 		// Style data
 		/**
 		 * @var SimpleXMLElement XML object for the styles XML file
@@ -212,7 +218,7 @@
 				sys_get_temp_dir();
 
 			$this -> TempDir = rtrim($this -> TempDir, DIRECTORY_SEPARATOR);
-			$this -> TempDir = $this -> TempDir.DIRECTORY_SEPARATOR.uniqid().DIRECTORY_SEPARATOR;
+			$this -> TempDir = $this -> TempDir.DIRECTORY_SEPARATOR.uniqid('xlsx',false).DIRECTORY_SEPARATOR;
 
 			$Zip = new ZipArchive;
 			$Status = $Zip -> open($Filepath);
@@ -226,6 +232,12 @@
 			if ($Zip -> locateName('xl/workbook.xml') !== false)
 			{
 				$this -> WorkbookXML = new SimpleXMLElement($Zip -> getFromName('xl/workbook.xml'));
+			}
+
+			// Getting the general workbook information
+			if ($Zip -> locateName('xl/_rels/workbook.xml') !== false)
+			{
+				$this -> WorkbookRels = new SimpleXMLElement($Zip -> getFromName('xl/_rels/workbook.xml.rels'));
 			}
 
 			// Extracting the XMLs from the XLSX zip file
@@ -370,30 +382,19 @@
 				$this -> Sheets = array();
 				foreach ($this -> WorkbookXML -> sheets -> sheet as $Index => $Sheet)
 				{
-					if ('fix') {
-						//Parse this: <sheet name="Sheet1" sheetId="1" state="visible" r:id="rId2"/>
-						$Attributes = $Sheet -> attributes();
-						foreach ($Attributes as $Name => $Value)
-						{
-							if ($Name == 'sheetId') {
-								$SheetID = (int)$Value;
-								break;
-							}
-						}
-						$this -> Sheets[$SheetID] = (string)$Sheet['name'];
-					}
-					else {
 						$Attributes = $Sheet -> attributes('r', true);
 						foreach ($Attributes as $Name => $Value)
 						{
 							if ($Name == 'id')
 							{
-								$SheetID = (int)str_replace('rId', '', (string)$Value);
+								// BAD!
+								// $SheetID = (int)str_replace('rId', '', (string)$Value);
+								// TODO: look up the relationship id in WorkbookRels
+								// $this->WorkbookRels
 								break;
 							}
 						}
 						$this -> Sheets[$SheetID] = (string)$Sheet['name'];
-					}
 				}
 				ksort($this -> Sheets);
 			}
