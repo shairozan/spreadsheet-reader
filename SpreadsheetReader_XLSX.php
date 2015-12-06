@@ -100,6 +100,12 @@
 		 */
 		private $Sheets = false;
 
+		/** @var array An index of sheet rIds */
+		private $SheetIndexesToIds = false;
+
+		/** @var array Relationships from rIds to files */
+		private $SheetIdsToFiles = false;
+
 		private $SharedStringCount = 0;
 		private $SharedStringIndex = 0;
 		private $LastSharedStringValue = null;
@@ -237,7 +243,28 @@
 			// Getting the general workbook information
 			if ($Zip -> locateName('xl/_rels/workbook.xml') !== false)
 			{
-				$this -> WorkbookRels = new SimpleXMLElement($Zip -> getFromName('xl/_rels/workbook.xml.rels'));
+				$this -> WorkbookRels = $relations = new SimpleXMLElement($Zip -> getFromName('xl/_rels/workbook.xml.rels'));
+
+				$relations->registerXPathNamespace('r','http://schemas.openxmlformats.org/package/2006/relationships');
+
+				$elements = $relations->xpath('/r:Relationships/r:Relationship[@Id and @Target and '.
+					'@Type = \'http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\']');
+
+				$map = [];
+				foreach ( $elements as $elem ) {
+					$id = (string)$elem['Id'];
+					$target = (string)$elem['Target'];
+					$inZipPath = 'xl/'.$target;
+					if ( $Zip->locateName($inZipPath) !== false ) {
+						$Zip -> extractTo($this -> TempDir, $inZipPath);
+						$map[$id] = $target;
+					}
+				}
+
+				$this->SheetIdsToFiles = $map;
+
+				$this->SheetIndexesToIds = array_keys($map);
+
 			}
 
 			// Extracting the XMLs from the XLSX zip file
@@ -255,8 +282,8 @@
 				}
 			}
 
-			$Sheets = $this -> Sheets();
-
+			$this -> Sheets = $this -> Sheets();
+			/* bullhockey
 			foreach ($this -> Sheets as $Index => $Name)
 			{
 				if ($Zip -> locateName('xl/worksheets/sheet'.$Index.'.xml') !== false)
@@ -265,6 +292,7 @@
 					$this -> TempFiles[] = $this -> TempDir.'xl'.DIRECTORY_SEPARATOR.'worksheets'.DIRECTORY_SEPARATOR.'sheet'.$Index.'.xml';
 				}
 			}
+			*/
 
 			$this -> ChangeSheet(0);
 
@@ -387,14 +415,11 @@
 						{
 							if ($Name == 'id')
 							{
-								// BAD!
-								// $SheetID = (int)str_replace('rId', '', (string)$Value);
-								// TODO: look up the relationship id in WorkbookRels
-								// $this->WorkbookRels
+								$this -> Sheets[(string)$Value]
+									= (string)$Sheet['name'];
 								break;
 							}
 						}
-						$this -> Sheets[$SheetID] = (string)$Sheet['name'];
 				}
 				ksort($this -> Sheets);
 			}
@@ -410,17 +435,24 @@
 		 */
 		public function ChangeSheet($Index)
 		{
-			$RealSheetIndex = false;
-			$Sheets = $this -> Sheets();
-			if (isset($Sheets[$Index]))
-			{
-				$SheetIndexes = array_keys($this -> Sheets);
-				$RealSheetIndex = $SheetIndexes[$Index];
+			$SheetFile = false;
+
+			if ( is_int($Index) || is_numeric( substr($Index,0,1) )  ) {
+				$Index = $this->SheetIndexesToIds[$Index];
 			}
 
-			$TempWorksheetPath = $this -> TempDir.'xl/worksheets/sheet'.$RealSheetIndex.'.xml';
+			if (array_key_exists($Index, $this->Sheets))
+			{
+				$SheetFile = $this->SheetIdsToFiles[$Index];
+			}
 
-			if ($RealSheetIndex !== false && is_readable($TempWorksheetPath))
+			if ( $RealSheetIndex === false ) {
+				return false;
+			}
+
+			$TempWorksheetPath = $this -> TempDir.'xl/'.$SheetFile;
+
+			if (is_readable($TempWorksheetPath))
 			{
 				$this -> WorksheetPath = $TempWorksheetPath;
 
