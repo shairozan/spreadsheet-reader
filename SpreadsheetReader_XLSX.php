@@ -446,7 +446,7 @@
 				$SheetFile = $this->SheetIdsToFiles[$Index];
 			}
 
-			if ( $RealSheetIndex === false ) {
+			if ( $SheetFile === false ) {
 				return false;
 			}
 
