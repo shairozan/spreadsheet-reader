@@ -241,7 +241,7 @@
 			}
 
 			// Getting the general workbook information
-			if ($Zip -> locateName('xl/_rels/workbook.xml') !== false)
+			if ($Zip -> locateName('xl/_rels/workbook.xml.rels') !== false)
 			{
 				$this -> WorkbookRels = $relations = new SimpleXMLElement($Zip -> getFromName('xl/_rels/workbook.xml.rels'));
 
