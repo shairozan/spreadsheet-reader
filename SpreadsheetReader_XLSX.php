@@ -6,6 +6,11 @@
  */
 	class SpreadsheetReader_XLSX implements Iterator, Countable
 	{
+
+		const pkg_rels_ns = 'http://schemas.openxmlformats.org/package/2006/relationships';
+		const doc_rels_ns = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+		const workbook_ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+
 		const CELL_TYPE_BOOL = 'b';
 		const CELL_TYPE_NUMBER = 'n';
 		const CELL_TYPE_ERROR = 'e';
@@ -237,7 +242,26 @@
 			// Getting the general workbook information
 			if ($Zip -> locateName('xl/workbook.xml') !== false)
 			{
-				$this -> WorkbookXML = new SimpleXMLElement($Zip -> getFromName('xl/workbook.xml'));
+				$this -> WorkbookXML = $workbook = new SimpleXMLElement($Zip -> getFromName('xl/workbook.xml'));
+
+				$workbook->registerXPathNamespace('w',self::workbook_ns);
+				$workbook->registerXPathNamespace('r',self::doc_rels_ns);
+
+				$elements = $workbook->xpath('/w:workbook/w:sheets/w:sheet[@r:id and @name]');
+
+				$relation_prefix = array_search(self::doc_rels_ns, $workbook->getDocNamespaces());
+
+				$index = [];
+				$map = [];
+				foreach ( $elements as $elem ) {
+					$id = (string)$elem->attributes($relation_prefix,true)['id'];
+					$name = (string)$elem['name'];
+					$map[$id] = $name;
+					$index[] = $id;
+				}
+
+				$this->Sheets = $map;
+				$this->SheetIndexesToIds = $index;
 			}
 
 			// Getting the general workbook information
@@ -245,7 +269,7 @@
 			{
 				$this -> WorkbookRels = $relations = new SimpleXMLElement($Zip -> getFromName('xl/_rels/workbook.xml.rels'));
 
-				$relations->registerXPathNamespace('r','http://schemas.openxmlformats.org/package/2006/relationships');
+				$relations->registerXPathNamespace('r',self::pkg_rels_ns);
 
 				$elements = $relations->xpath('/r:Relationships/r:Relationship[@Id and @Target and '.
 					'@Type = \'http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\']');
@@ -255,15 +279,13 @@
 					$id = (string)$elem['Id'];
 					$target = (string)$elem['Target'];
 					$inZipPath = 'xl/'.$target;
-					if ( $Zip->locateName($inZipPath) !== false ) {
+					if ( $Zip -> locateName($inZipPath) !== false ) {
 						$Zip -> extractTo($this -> TempDir, $inZipPath);
 						$map[$id] = $target;
 					}
 				}
 
 				$this->SheetIdsToFiles = $map;
-
-				$this->SheetIndexesToIds = array_keys($map);
 
 			}
 
@@ -282,7 +304,7 @@
 				}
 			}
 
-			$this -> Sheets = $this -> Sheets();
+			//$this -> Sheets = $this -> Sheets();
 			/* bullhockey
 			foreach ($this -> Sheets as $Index => $Name)
 			{
@@ -405,6 +427,7 @@
 		 */
 		public function Sheets()
 		{
+			/*
 			if ($this -> Sheets === false)
 			{
 				$this -> Sheets = array();
@@ -424,6 +447,8 @@
 				ksort($this -> Sheets);
 			}
 			return array_values($this -> Sheets);
+			*/
+			return $this->Sheets;
 		}
 
 		/**
