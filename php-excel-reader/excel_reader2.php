@@ -914,7 +914,7 @@ class Spreadsheet_Excel_Reader {
 	 */
 	function Spreadsheet_Excel_Reader($file='',$store_extended_info=true,$outputEncoding='') {
 		$this->_ole = new OLERead();
-		$this->setUTFEncoder('iconv');
+		$this->setUTFEncoder();
 		if ($outputEncoding != '') { 
 			$this->setOutputEncoding($outputEncoding);
 		}
@@ -941,7 +941,7 @@ class Spreadsheet_Excel_Reader {
 	 *  set iconv if you would like use 'iconv' for encode UTF-16LE to your encoding
 	 *  set mb if you would like use 'mb_convert_encoding' for encode UTF-16LE to your encoding
 	 */
-	function setUTFEncoder($encoder = 'iconv') {
+	function setUTFEncoder($encoder = 'mb') {
 		$this->_encoderFunction = '';
 		if ($encoder == 'iconv') {
 			$this->_encoderFunction = function_exists('iconv') ? 'iconv' : '';
